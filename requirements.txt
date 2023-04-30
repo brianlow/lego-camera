@@ -1,0 +1,4 @@
+pillow
+ultralytics
+flask
+flask_cors
