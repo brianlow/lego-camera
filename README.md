@@ -9,7 +9,7 @@ on a white background.
 
 ```
 # install python deps
-python -m pip pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 # download icons for bricks and save to ./static/images
 ./download_bricks.sh
