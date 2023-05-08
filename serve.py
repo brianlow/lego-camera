@@ -1,6 +1,5 @@
 from ultralytics import YOLO
 from PIL import Image
-import cv2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import base64
@@ -8,11 +7,8 @@ import torch
 from io import BytesIO
 from lib.lego_colors import lego_colors_by_id
 
-from typing import Callable, Tuple, Union
-from dataclasses import dataclass
 from PIL import Image
 from lib.bounding_box import BoundingBox
-from lib.bounding_box_funcs import make_bbox_square, convert_xywh_to_upper_left_xy
 
 # model = YOLO("10-10x-square.pt")  # 10 classes
 # detection_model = YOLO("detect-05-sample-real3.pt")
@@ -23,45 +19,14 @@ classification_model = YOLO("03-447x.pt")
 color_model = YOLO("color-03-common-nano.pt")
 
 
-# Images are already closely cropped and I think there is valuable
-# information at the edges. So make images square so we can just
-# resize rather than resize + crop.
-class SquareImageTransform:
-    def __init__(self, fill_color=(255, 255, 255)):
-        self.fill_color = fill_color
-
-    def __call__(self, image):
-        width, height = image.size
-        new_size = max(width, height)
-        new_image = Image.new('RGB', (new_size, new_size), self.fill_color)
-        new_image.paste(image, ((new_size - width) //
-                        2, (new_size - height) // 2))
-        return new_image
-
-
-class ResizeTransform:
-    def __init__(self, length=224):
-        self.length = length
-
-    def __call__(self, image):
-        image = image.resize((self.length, self.length))
-        return image
-
-
-square = SquareImageTransform()
-resize = ResizeTransform()
-
-
 def decimal_default(obj):
     if isinstance(obj, (float, complex)):
         return format(obj, '.3f')
     return str(obj)
 
-
 app = Flask(__name__, static_url_path='/')
 
 app.static_folder = 'static'
-
 
 @app.route('/')
 def index():
