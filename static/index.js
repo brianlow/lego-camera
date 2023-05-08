@@ -209,6 +209,13 @@
           data.classes
             .filter((c) => c.probability > 1.0)
             .map((c) => `${c.label}: ${c.probability}%<br><img src="/images/${c.label}.png"/>`).join("<br/>");
+
+        if (data.color) {
+          document.getElementById("prediction-color").innerHTML =
+            `<div style="background-color: ${data.color.hex}; width: 25px; height: 25px"></div><span>${data.color.name}</span>`;
+        } else {
+          document.getElementById("prediction-color").innerHTML = "";
+        }
       })
       .catch((error) => {
         console.error("Error:", error);

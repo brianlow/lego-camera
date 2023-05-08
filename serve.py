@@ -6,17 +6,19 @@ from flask_cors import CORS
 import base64
 import torch
 from io import BytesIO
+from lib.lego_colors import lego_colors_by_id
 
 from typing import Callable, Tuple, Union
 from dataclasses import dataclass
 from PIL import Image
-from lib.bounding_box import make_bbox_square, convert_xywh_to_upper_left_xy
+from lib.bounding_box_funcs import make_bbox_square, convert_xywh_to_upper_left_xy
 
 # model = YOLO("10-10x-square.pt")  # 10 classes
 # detection_model = YOLO("detect-05-sample-real3.pt")
 # detection_model = YOLO("detect-07-4k-real-and-renders.pt")
 detection_model = YOLO("detect-10-4k-real-and-renders-nano-1024-image-size2.pt")
 classification_model = YOLO("03-447x.pt")
+color_model = YOLO("color-03-common-nano.pt")
 
 
 # Images are already closely cropped and I think there is valuable
@@ -119,24 +121,26 @@ def classify():
         image.convert("RGB").save('tmp/last-classify-transform.png')
 
         results = classification_model.predict(source=image)
-
         result = results[0].cpu()
-        class_dict = result.names
-        pred_tensor = result.probs
+        topk_values, topk_indices = torch.topk(result.probs, k=3)
+        topk_classes = [result.names[i.item()] for i in topk_indices]
 
-        # Get the top 3 indices and values
-        topk_values, topk_indices = torch.topk(pred_tensor, k=3)
-
-        # Get the corresponding class labels from the class dictionary
-        topk_classes = [class_dict[i.item()] for i in topk_indices]
-
-        # Print the top 3 classes and their corresponding probabilities
-        for i in range(len(topk_classes)):
-            print(f"{i+1}. {topk_classes[i]} -> {topk_values[i] * 100:.0f}%")
+        color_results = color_model.predict(source=image)
+        color_result = color_results[0].cpu()
+        color_topk_values, topk_indices = torch.topk(color_result.probs, k=3)
+        color_topk_classes = [color_result.names[i.item()] for i in topk_indices]
+        predicted_color = lego_colors_by_id[int(color_topk_classes[0])]
+        predicted_color_confidence = float(color_topk_values[0])
 
         response = {
             'classes': [{ 'label': topk_classes[i], 'probability': round(topk_values[i].item() * 100, 0) } for i in range(len(topk_classes))],
-            'boxes': boxes_json
+            'boxes': boxes_json,
+            'color': {
+                'id': predicted_color.id,
+                'name': predicted_color.name,
+                'hex': f"#{predicted_color.hex()}",
+                'confidence': predicted_color_confidence,
+            }
         }
         print("---")
         print(response)
