@@ -86,13 +86,14 @@ def detect():
         results = detection_model(image.convert("RGB"))
         boxes = []
         if len(results) > 0:
-            boxes = list(
-                map(convert_xywh_to_upper_left_xy, results[0].cpu().boxes))
-            Image.fromarray(results[0].cpu().plot()).save(
-                'tmp/last-detect-detection.png')
+            boxes = [BoundingBox.from_yolo(yolo_box)
+                     for yolo_box in results[0].cpu().boxes]
+            Image.fromarray(
+                results[0].cpu().plot()[..., ::-1]
+            ).save('tmp/last-detect-detection.png')
 
         response = {
-            'boxes': boxes
+            'boxes': [{"x": box.x, "y": box.y, "w": box.width, "h": box.height} for box in boxes]
         }
         print("---")
         print(response)
@@ -125,9 +126,7 @@ def classify():
             boxes = [BoundingBox.from_yolo(yolo_box)
                      for yolo_box in results[0].cpu().boxes]
             if len(boxes) > 0:
-                print(f"Found {len(boxes)} boxes")
                 largest_box = min(boxes, key=lambda box: box.area)
-                print(f"Cropping to {largest_box}")
                 image = largest_box.square().crop(image)
 
         image.convert("RGB").save('tmp/last-classify-transform.png')

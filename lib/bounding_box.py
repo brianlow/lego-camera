@@ -15,10 +15,10 @@ class BoundingBox:
     @classmethod
     def from_yolo(cls, yolo_box):
         return cls(
-          x1=yolo_box.xyxy[0][0].int(),
-          y1=yolo_box.xyxy[0][1].int(),
-          x2=yolo_box.xyxy[0][2].int(),
-          y2=yolo_box.xyxy[0][3].int()
+          x1=int(yolo_box.xyxy[0][0].int()),
+          y1=int(yolo_box.xyxy[0][1].int()),
+          x2=int(yolo_box.xyxy[0][2].int()),
+          y2=int(yolo_box.xyxy[0][3].int())
         )
 
     @classmethod
