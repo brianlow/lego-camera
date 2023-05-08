@@ -1,46 +1,92 @@
 <!DOCTYPE html>
-<!-- https://developer.mozilla.org/en-US/docs/Web/API/Media_Capture_and_Streams_API/Taking_still_photos#demo -->
 <html>
 
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <link rel="stylesheet" href="index.css">
   <script src="index.js"></script>
 </head>
 
 <body>
 
-  <div class="p-5">
+  <div>
+    <!-- hidden video -->
+    <video id="video" autoplay playsinline class="d-none">
+      Video stream not available.
+    </video>
 
-    <div class="d-flex" style="gap: 3rem; align-items: flex-end">
-      <!-- hidden video -->
-      <video id="video" autoplay playsinline style="display:none">Video stream not available.</video>
+    <!-- video preview and camera controls -->
+    <div class="preview-container">
+      <canvas id="preview-canvas">
+      </canvas>
 
-      <!-- cropped video preview -->
-      <canvas id="preview-canvas" style="width: 400px; height: 400px"> </canvas>
+      <div class="preview-controls d-flex flex-col">
+        <div class="d-flex flex-column">
+          <div class="mb-1">
+            <input id="show-detection-checkbox" type="checkbox" class="btn-check" autocomplete="off">
+            <label for="show-detection-checkbox" class="btn btn-outline-secondary"><i
+                class="bi bi-bounding-box-circles"></i>
+            </label>
+          </div>
+          <div>
+            <button id="zoom-button" type="button" class="btn btn-secondary">x2</button>
+          </div>
+        </div>
 
-      <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="" id="show-detection-checkbox">
-        <label class="form-check-label" for="show-detection-checkbox">
-          Show Detection Preview
-        </label>
+        <button id="take-photo" class="btn btn-primary ms-1" style="width: 80px; height: 80px">
+          <i class="bi fs-1 bi-camera-fill"></i>
+        </button>
       </div>
-      <button id="startbutton" class="btn btn-primary" style="width: 150px; height: 150px">Take Photo</button>
     </div>
 
-    <div class="mt-5 d-flex" style="gap: 1rem;">
-      <canvas id="photo-canvas" style="display: none"></canvas>
-      <img id="photo" style="width: 224px; height: 224px;" />
-      <div id="prediction"></div>
-      <div id="prediction-color"></div>
+    <!-- don't remember what this is for -->
+    <canvas id="photo-canvas" style="display: none"></canvas>
 
-      <div class="mt-5">
-        <h3>All Bricks</h3>
-        <div id="all-classes"></div>
-      </div>
+    <div id="predictions-container" class="p-3">
 
+      <template id="prediction-template">
+        <div class="d-flex flex-row w-100 mb-5">
+          <div class="prediction-color-border p-2" style="border-left: 5px solid gray; background: whitesmoke;">
+            <img class="prediction-source" src="https://placehold.jp/50x50.png" style="max-width:50px;" />
+          </div>
+          <div class="prediction-parts">
+          </div>
+        </div>
+      </template>
+
+      <template id="prediction-part-template">
+        <div class="ms-3 mb-4 d-flex flex-row">
+          <div class="d-flex align-items-center h-100">
+            <img class="prediction-part-image" src="images/3001.png" style="width: 75px" />
+          </div>
+          <div class="ms-3 d-flex align-items-center h-100">
+            <div>
+              <div class="prediction-part-name fw-bold">2x3 Brick
+                <span class="prediction-part-id ms-1 badge text-bg-light" style="border:1px solid lightgray">3010</span>
+                <span class="prediction-part-confidence ms-1 badge text-bg-light"
+                  style="border:1px solid lightgray">90%</span>
+              </div>
+              <div class="d-flex flex-row align-items-center">
+                <div class="prediction-color-swatch" style="width:20px; height:20px; background-color:red">&nbsp;</div>
+                <span class="prediction-color-name ms-1">
+                  Red
+                </span>
+                <span class="prediction-color-id ms-1 badge text-bg-light" style="border:1px solid lightgray">23</span>
+                <span class="prediction-color-confidence ms-1 badge text-bg-light"
+                  style="border:1px solid lightgray">90%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </template>
+
+      <img id="photo" style="display: none; width: 224px; height: 224px;" />
     </div>
+
 
 </body>
 

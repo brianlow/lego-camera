@@ -14,30 +14,17 @@
   let video = null;
   let photoCanvas = null;
   let photo = null;
-  let startbutton = null;
+  let takePhotoButton = null;
   let showDetectionCheckbox = null;
   let previewCanvas = null;
   let showDetection = false;
+  let predictionsContainer = null;
+  let predictionTemplate = null;
+  let predictionPartTemplate = null;
   let boundingBoxes = [];
   let crop = { x: 0, y: 0, width: 300, height: 300 };
 
-  function loadAllClasses() {
-    fetch("/classes", { method: "GET", })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Success:", data);
-        document.getElementById("all-classes").innerHTML =
-          data.classes
-            .map((c) => `<div class="all-classes-item"><img src="/images/${c}.png"/><br/>${c}</div>`).join("");
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        document.getElementById("all-classes").innerText = error;
-      });
-  }
-
   function startup() {
-    loadAllClasses();
     video = document.getElementById("video");
     previewCanvas = document.getElementById("preview-canvas");
     previewContext = previewCanvas.getContext("2d");
@@ -55,14 +42,18 @@
     photoCanvas.setAttribute("width", 224);
 
     photo = document.getElementById("photo");
-    startbutton = document.getElementById("startbutton");
+    takePhotoButton = document.getElementById("take-photo");
 
     showDetectionCheckbox = document.getElementById("show-detection-checkbox");
+
+    predictionsContainer = document.getElementById("predictions-container");
+    predictionTemplate = document.getElementById("prediction-template")
+    predictionPartTemplate = document.getElementById("prediction-part-template")
 
     function updatePreviewCanvas() {
       previewContext.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, previewCanvas.width, previewCanvas.height);
       boundingBoxes.forEach((box) => {
-        previewContext.strokeStyle = 'red';
+        previewContext.strokeStyle = box.valid ? 'red' : 'gray';
         previewContext.lineWidth = 2;
 
         // Detection is done on 244x244 image, scale to the 400x400 preview
@@ -115,7 +106,7 @@
       }
     )
 
-    startbutton.addEventListener(
+    takePhotoButton.addEventListener(
       "click",
       (ev) => {
         takepicture();
@@ -187,6 +178,7 @@
 
 
   function takepicture() {
+    console.log("Taking photo...");
     drawImageScaled2(video, photoCanvas)
     const data = photoCanvas.toDataURL("image/png");
     photo.setAttribute("src", data);
@@ -205,26 +197,35 @@
       .then((response) => response.json())
       .then((data) => {
         console.log("Success:", data);
-        document.getElementById("prediction").innerHTML =
-          data.classes
-            .filter((c) => c.probability > 1.0)
-            .map((c) => `${c.label}: ${c.probability}%<br><img src="/images/${c.label}.png"/>`).join("<br/>");
 
-        if (data.color) {
-          document.getElementById("prediction-color").innerHTML =
-            `<div style="background-color: ${data.color.hex}; width: 25px; height: 25px"></div><span>${data.color.name}</span>`;
-        } else {
-          document.getElementById("prediction-color").innerHTML = "";
-        }
+        const predictionElement = predictionTemplate.content.cloneNode(true);
+        predictionElement.querySelector('.prediction-color-border').style.borderColor = data.color ? data.color.hex : 'gray';
+        predictionElement.querySelector('.prediction-source').src = data.source_url;
+
+        data.parts.forEach((part) => {
+          console.log("PART ", part.id);
+          const partElement = predictionPartTemplate.content.cloneNode(true);
+          partElement.querySelector(".prediction-part-image").src = part.url
+          partElement.querySelector(".prediction-part-id").innerText = part.id
+          partElement.querySelector(".prediction-part-confidence").innerText = Math.round(part.confidence * 100, 0) + "%";
+          partElement.querySelector(".prediction-color-swatch").style.backgroundColor = data.color ? data.color.hex : 'transparent';
+          partElement.querySelector(".prediction-color-name").innerText = data.color ? data.color.name : '';
+          partElement.querySelector(".prediction-color-confidence").innerText = data.color ? Math.round(data.color.confidence * 100, 0) + "%" : '';
+
+          predictionElement.querySelector('.prediction-parts').appendChild(partElement);
+        })
+
+        predictionsContainer.innerHTML = '';
+        predictionsContainer.appendChild(predictionElement);
       })
       .catch((error) => {
         console.error("Error:", error);
-        document.getElementById("prediction").innerText = error;
+        predictionsContainer.innerText = error;
       });
   }
 
   window.onerror = function (msg, url, line, col, error) {
-    document.getElementById("prediction").innerText = msg;
+    predictionsContainer.innerText = msg;
   };
 
   // Set up our event listener to run the startup process

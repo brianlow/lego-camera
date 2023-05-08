@@ -9,6 +9,8 @@ from lib.lego_colors import lego_colors_by_id
 
 from PIL import Image
 from lib.bounding_box import BoundingBox
+from lib.json_utils import decimal_default
+from lib.image_utils import image_to_data_url
 
 # model = YOLO("10-10x-square.pt")  # 10 classes
 # detection_model = YOLO("detect-05-sample-real3.pt")
@@ -19,14 +21,10 @@ classification_model = YOLO("03-447x.pt")
 color_model = YOLO("color-03-common-nano.pt")
 
 
-def decimal_default(obj):
-    if isinstance(obj, (float, complex)):
-        return format(obj, '.3f')
-    return str(obj)
-
 app = Flask(__name__, static_url_path='/')
 
 app.static_folder = 'static'
+
 
 @app.route('/')
 def index():
@@ -58,7 +56,7 @@ def detect():
             ).save('tmp/last-detect-detection.png')
 
         response = {
-            'boxes': [{"x": box.x, "y": box.y, "w": box.width, "h": box.height} for box in boxes]
+            'boxes': [{"x": box.x, "y": box.y, "w": box.width, "h": box.height, "valid": not box.is_touching_frame(image.width, image.height)} for box in boxes]
         }
         print("---")
         print(response)
@@ -90,6 +88,8 @@ def classify():
             ).save('tmp/last-classify-detection.png')
             boxes = [BoundingBox.from_yolo(yolo_box)
                      for yolo_box in results[0].cpu().boxes]
+            boxes = list(filter(lambda box: not box.is_touching_frame(
+                image.width, image.height), boxes))
             if len(boxes) > 0:
                 largest_box = min(boxes, key=lambda box: box.area)
                 image = largest_box.square().crop(image)
@@ -110,7 +110,12 @@ def classify():
         predicted_color_confidence = float(color_topk_values[0])
 
         response = {
-            'classes': [{'label': topk_classes[i], 'probability': round(topk_values[i].item() * 100, 0)} for i in range(len(topk_classes))],
+            'source_url': image_to_data_url(image.convert("RGB")),
+            'parts': [{
+                'id': topk_classes[i],
+                'url': f"/images/{topk_classes[i]}.png",
+                'confidence': topk_values[i].item()
+            } for i in range(len(topk_classes))],
             'color': {
                 'id': predicted_color.id,
                 'name': predicted_color.name,

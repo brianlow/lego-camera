@@ -2,11 +2,12 @@ from PIL import ImageFont
 import os
 import hashlib
 
+
 class BoundingBox:
     _font = None
 
     def __init__(self,
-    x1, y1, x2, y2):
+                 x1, y1, x2, y2):
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
@@ -15,19 +16,19 @@ class BoundingBox:
     @classmethod
     def from_yolo(cls, yolo_box):
         return cls(
-          x1=int(yolo_box.xyxy[0][0].int()),
-          y1=int(yolo_box.xyxy[0][1].int()),
-          x2=int(yolo_box.xyxy[0][2].int()),
-          y2=int(yolo_box.xyxy[0][3].int())
+            x1=int(yolo_box.xyxy[0][0].int()),
+            y1=int(yolo_box.xyxy[0][1].int()),
+            x2=int(yolo_box.xyxy[0][2].int()),
+            y2=int(yolo_box.xyxy[0][3].int())
         )
 
     @classmethod
     def from_xywh(cls, x, y, w, h):
         return cls(
-          x1=x,
-          y1=y,
-          x2=x+w,
-          y2=y+h
+            x1=x,
+            y1=y,
+            x2=x+w,
+            y2=y+h
         )
 
     @classmethod
@@ -57,6 +58,9 @@ class BoundingBox:
     def area(self):
         return self.width * self.height
 
+    def is_touching_frame(self, frame_width, frame_height):
+        return self.x1 < 5 or self.y1 < 5 or frame_width - self.x2 < 5 or frame_height - self.y2 < 5
+
     # Extracts a portion of an image
     def crop(self, image):
         return image.crop((int(self.x1), int(self.y1), int(self.x2), int(self.y2)))
@@ -67,7 +71,7 @@ class BoundingBox:
 
     # Draw a label below the box, colors are a hex string
     def draw_label(self, draw, text, text_color, swatch_color):
-        x = self.x1 # bottom left corner of box, top left of label
+        x = self.x1  # bottom left corner of box, top left of label
         y = self.y2
         print(BoundingBox.font())
         text_length = BoundingBox.font().getsize(text)[0]
@@ -98,7 +102,6 @@ class BoundingBox:
         y2_new = y1_new + max_dim
 
         return BoundingBox(x1_new, y1_new, x2_new, y2_new)
-
 
     def hash(self):
         bytes = [self.x1, self.y1, self.x2, self.y2].join(".").encode('utf-8')
