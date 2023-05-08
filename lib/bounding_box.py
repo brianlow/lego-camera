@@ -45,6 +45,18 @@ class BoundingBox:
     def y(self):
         return self.y1
 
+    @property
+    def width(self):
+        return self.x2 - self.x1
+
+    @property
+    def height(self):
+        return self.y2 - self.y1
+
+    @property
+    def area(self):
+        return self.width * self.height
+
     # Extracts a portion of an image
     def crop(self, image):
         return image.crop((int(self.x1), int(self.y1), int(self.x2), int(self.y2)))
@@ -73,6 +85,20 @@ class BoundingBox:
             self.x2 + x,
             self.y2 + y
         )
+
+    # Returns new BoundingBox that is square by lengthing the shorter side
+    def square(self):
+        max_dim = max(self.width, self.height)
+        width_diff = max_dim - self.width
+        height_diff = max_dim - self.height
+
+        x1_new = self.x1 - width_diff / 2
+        x2_new = x1_new + max_dim
+        y1_new = self.y1 - height_diff / 2
+        y2_new = y1_new + max_dim
+
+        return BoundingBox(x1_new, y1_new, x2_new, y2_new)
+
 
     def hash(self):
         bytes = [self.x1, self.y1, self.x2, self.y2].join(".").encode('utf-8')
