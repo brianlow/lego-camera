@@ -25,6 +25,21 @@
   let crop = { x: 0, y: 0, width: 300, height: 300 };
 
   function startup() {
+    var myInput = document.getElementById('myFileInput');
+
+    function sendPic(event) {
+      if (event.target.files && event.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const dataUrl = e.target.result;
+          const base64Image = dataUrl.replace(/^data:image\/(png|jpg|jpeg);base64,/, "");
+          classify(base64Image);
+        }
+        reader.readAsDataURL(event.target.files[0]);
+      }
+    }
+    myInput.addEventListener('change', sendPic, false);
+
     video = document.getElementById("video");
     previewCanvas = document.getElementById("preview-canvas");
     previewContext = previewCanvas.getContext("2d");
@@ -122,7 +137,7 @@
     while (showDetection) {
       drawImageScaled2(video, photoCanvas)
       const dataUrl = photoCanvas.toDataURL("image/png");
-      const base64_image = dataUrl.replace(/^data:image\/(png|jpg);base64,/, "");
+      const base64_image = dataUrl.replace(/^data:image\/(png|jpg|jpeg);base64,/, "");
 
       // detect the image
       response = await fetch("/detect", {
@@ -176,16 +191,7 @@
     // 0, 0, canvas.width, canvas.height);
   }
 
-
-  function takepicture() {
-    console.log("Taking photo...");
-    drawImageScaled2(video, photoCanvas)
-    const data = photoCanvas.toDataURL("image/png");
-    photo.setAttribute("src", data);
-
-    // base64 encode the image
-    const base64_image = data.replace(/^data:image\/(png|jpg);base64,/, "");
-
+  function classify(base64_image) {
     // classify the image
     fetch("/classify", {
       method: "POST",
@@ -222,6 +228,19 @@
         console.error("Error:", error);
         predictionsContainer.innerText = error;
       });
+
+  }
+
+  function takepicture() {
+    console.log("Taking photo...");
+    drawImageScaled2(video, photoCanvas)
+    const data = photoCanvas.toDataURL("image/png");
+    photo.setAttribute("src", data);
+
+    // base64 encode the image
+    const base64_image = data.replace(/^data:image\/(png|jpg);base64,/, "");
+
+    classify(base64_image);
   }
 
   window.onerror = function (msg, url, line, col, error) {

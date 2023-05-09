@@ -73,6 +73,9 @@ def detect():
 @app.route('/classify', methods=['POST'])
 def classify():
     try:
+        print("-------------------------------- JSON")
+        print(request.json)
+        print("--------------------------------")
         encoded_image = request.json['image']
         image_bytes = base64.b64decode(encoded_image)
         image = Image.open(BytesIO(image_bytes))
