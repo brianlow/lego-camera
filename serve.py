@@ -91,7 +91,7 @@ def classify():
             boxes = list(filter(lambda box: not box.is_touching_frame(
                 image.width, image.height), boxes))
             if len(boxes) > 0:
-                largest_box = min(boxes, key=lambda box: box.area)
+                largest_box = max(boxes, key=lambda box: box.area)
                 image = largest_box.square().crop(image)
 
         image.convert("RGB").save('tmp/last-classify-transform.png')
