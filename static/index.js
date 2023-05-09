@@ -192,6 +192,8 @@
   }
 
   function classify(base64_image) {
+    predictionsContainer.innerHTML = '';
+
     // classify the image
     fetch("/classify", {
       method: "POST",
@@ -221,7 +223,6 @@
           predictionElement.querySelector('.prediction-parts').appendChild(partElement);
         })
 
-        predictionsContainer.innerHTML = '';
         predictionsContainer.appendChild(predictionElement);
       })
       .catch((error) => {

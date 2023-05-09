@@ -10,11 +10,8 @@ from lib.lego_colors import lego_colors_by_id
 from PIL import Image
 from lib.bounding_box import BoundingBox
 from lib.json_utils import decimal_default
-from lib.image_utils import image_to_data_url
+from lib.image_utils import image_to_data_url, correct_image_orientation
 
-# model = YOLO("10-10x-square.pt")  # 10 classes
-# detection_model = YOLO("detect-05-sample-real3.pt")
-# detection_model = YOLO("detect-07-4k-real-and-renders.pt")
 detection_model = YOLO(
     "detect-10-4k-real-and-renders-nano-1024-image-size2.pt")
 classification_model = YOLO("03-447x.pt")
@@ -69,18 +66,15 @@ def detect():
                     'message': 'Error processing image: {}'.format(str(e))}
         return jsonify(response, default=decimal_default)
 
-
 @app.route('/classify', methods=['POST'])
 def classify():
     try:
-        print("-------------------------------- JSON")
-        print(request.json)
-        print("--------------------------------")
         encoded_image = request.json['image']
         image_bytes = base64.b64decode(encoded_image)
         image = Image.open(BytesIO(image_bytes))
+        image = correct_image_orientation(image)
 
-        image.convert("RGB").save('tmp/last-classify-original.png')
+        image.convert("RGB").save('tmp/last-classify-original.jpeg')
 
         results = detection_model(image.convert("RGB"))
 
@@ -88,7 +82,7 @@ def classify():
         if len(results) > 0:
             Image.fromarray(
                 results[0].cpu().plot()[..., ::-1]
-            ).save('tmp/last-classify-detection.png')
+            ).save('tmp/last-classify-detection.jpeg')
             boxes = [BoundingBox.from_yolo(yolo_box)
                      for yolo_box in results[0].cpu().boxes]
             boxes = list(filter(lambda box: not box.is_touching_frame(
@@ -97,9 +91,10 @@ def classify():
                 largest_box = max(boxes, key=lambda box: box.area)
                 image = largest_box.square().crop(image)
 
-        image.convert("RGB").save('tmp/last-classify-transform.png')
+        image.convert("RGB").save('tmp/last-classify-transform.jpg')
 
         results = classification_model.predict(source=image)
+
         result = results[0].cpu()
         topk_values, topk_indices = torch.topk(result.probs, k=3)
         topk_classes = [result.names[i.item()] for i in topk_indices]
@@ -126,8 +121,11 @@ def classify():
                 'confidence': predicted_color_confidence,
             }
         }
-        print("---")
-        print(response)
+        print("--- response:")
+        r = response.copy()
+        r['source_url'] = r['source_url'][:15] + "..."
+        print(r)
+
         return jsonify(response)
 
     except Exception as e:
