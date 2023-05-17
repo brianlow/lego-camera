@@ -1,6 +1,6 @@
 from ultralytics import YOLO
 from PIL import Image
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 import base64
 import torch
@@ -11,6 +11,8 @@ from PIL import Image
 from lib.bounding_box import BoundingBox
 from lib.json_utils import decimal_default
 from lib.image_utils import image_to_data_url, correct_image_orientation
+from lib.db import Db
+from lib.compensate import canonical_part_id
 
 detection_model = YOLO(
     "detect-10-4k-real-and-renders-nano-1024-image-size2.pt")
@@ -22,6 +24,7 @@ app = Flask(__name__, static_url_path='/')
 
 app.static_folder = 'static'
 
+db = Db(g)
 
 @app.route('/')
 def index():
@@ -110,8 +113,9 @@ def classify():
         response = {
             'source_url': image_to_data_url(image.convert("RGB")),
             'parts': [{
-                'id': topk_classes[i],
-                'url': f"/images/{topk_classes[i]}.png",
+                'id': canonical_part_id(topk_classes[i]),
+                'name': part_name_or_blank(canonical_part_id(topk_classes[i])),
+                'url': f"/images/{canonical_part_id(topk_classes[i])}.png",
                 'confidence': topk_values[i].item()
             } for i in range(len(topk_classes))],
             'color': {
@@ -134,6 +138,13 @@ def classify():
                     'message': 'Error processing image: {}'.format(str(e))}
         return jsonify(response, default=decimal_default)
 
+def part_name_or_blank(num):
+    part = db.get_part_by_num(num)
+    return part.name if part else '??? mismatched ids'
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db.close()
 
 if __name__ == '__main__':
     print("-----------")
