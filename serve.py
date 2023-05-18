@@ -110,14 +110,24 @@ def classify():
         predicted_color = lego_colors_by_id[int(color_topk_classes[0])]
         predicted_color_confidence = float(color_topk_values[0])
 
+        parts = []
+        for i in range(len(topk_classes)):
+            confidence = topk_values[i].item()
+            if confidence < 0.10:
+                continue
+            part_num = canonical_part_id(topk_classes[i])
+            ldraw_id = db.get_ldraw_id_for_part_num(part_num)
+
+            parts.append({
+                'id': part_num,
+                'name': part_name_or_blank(part_num),
+                'url': f"/images/{ldraw_id}.png",
+                'confidence': confidence
+            })
+
         response = {
             'source_url': image_to_data_url(image.convert("RGB")),
-            'parts': [{
-                'id': canonical_part_id(topk_classes[i]),
-                'name': part_name_or_blank(canonical_part_id(topk_classes[i])),
-                'url': f"/images/{canonical_part_id(topk_classes[i])}.png",
-                'confidence': topk_values[i].item()
-            } for i in range(len(topk_classes))],
+            'parts': parts,
             'color': {
                 'id': predicted_color.id,
                 'name': predicted_color.name,
