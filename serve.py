@@ -5,14 +5,15 @@ from flask_cors import CORS
 import base64
 import torch
 from io import BytesIO
-from lib.lego_colors import lego_colors_by_id
 
 from PIL import Image
+from lib.lego_colors import lego_colors_by_id
 from lib.bounding_box import BoundingBox
 from lib.json_utils import decimal_default
 from lib.image_utils import image_to_data_url, correct_image_orientation
 from lib.db import Db
 from lib.compensate import canonical_part_id
+from lib.predictor import Predictor
 
 detection_model = YOLO(
     "detect-10-4k-real-and-renders-nano-1024-image-size2.pt")
@@ -25,6 +26,8 @@ app = Flask(__name__, static_url_path='/')
 app.static_folder = 'static'
 
 db = Db(g)
+
+predictor = Predictor(classification_model, color_model, db)
 
 @app.route('/')
 def index():
@@ -96,44 +99,11 @@ def classify():
 
         image.convert("RGB").save('tmp/last-classify-transform.jpg')
 
-        results = classification_model.predict(source=image)
-
-        result = results[0].cpu()
-        topk_values, topk_indices = torch.topk(result.probs, k=3)
-        topk_classes = [result.names[i.item()] for i in topk_indices]
-
-        color_results = color_model.predict(source=image)
-        color_result = color_results[0].cpu()
-        color_topk_values, topk_indices = torch.topk(color_result.probs, k=3)
-        color_topk_classes = [color_result.names[i.item()]
-                              for i in topk_indices]
-        predicted_color = lego_colors_by_id[int(color_topk_classes[0])]
-        predicted_color_confidence = float(color_topk_values[0])
-
-        parts = []
-        for i in range(len(topk_classes)):
-            confidence = topk_values[i].item()
-            if confidence < 0.10:
-                continue
-            part_num = canonical_part_id(topk_classes[i])
-            ldraw_id = db.get_ldraw_id_for_part_num(part_num)
-
-            parts.append({
-                'id': part_num,
-                'name': part_name_or_blank(part_num),
-                'url': f"/images/{ldraw_id}.png",
-                'confidence': confidence
-            })
+        parts = predictor.predict_parts_and_colors(image)
 
         response = {
             'source_url': image_to_data_url(image.convert("RGB")),
             'parts': parts,
-            'color': {
-                'id': predicted_color.id,
-                'name': predicted_color.name,
-                'hex': f"#{predicted_color.hex()}",
-                'confidence': predicted_color_confidence,
-            }
         }
         print("--- response:")
         r = response.copy()
@@ -147,10 +117,6 @@ def classify():
         response = {'success': False,
                     'message': 'Error processing image: {}'.format(str(e))}
         return jsonify(response, default=decimal_default)
-
-def part_name_or_blank(num):
-    part = db.get_part_by_num(num)
-    return part.name if part else '??? mismatched ids'
 
 @app.teardown_appcontext
 def close_connection(exception):

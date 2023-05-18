@@ -11,8 +11,8 @@ on a white background.
 # install python deps
 python -m pip install -r requirements.txt
 
-# download icons for bricks and save to ./static/images
-./download_bricks.sh
+# render icons for bricks with lego-rendering -> ./run.sh render-line-art.py
+# then copy from renders/line-art to this folder ./static/images
 
 # download classification model, too big for Github
 wget https://brian-lego-public.s3.us-west-1.amazonaws.com/03-447x.pt -o 03-447x.pt

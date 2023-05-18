@@ -217,10 +217,10 @@
           partElement.querySelector(".prediction-part-id").innerText = part.id;
           partElement.querySelector(".prediction-part-name").innerText = part.name;
           partElement.querySelector(".prediction-part-confidence").innerText = Math.round(part.confidence * 100, 0) + "%";
-          partElement.querySelector(".prediction-color-swatch").style.backgroundColor = data.color ? data.color.hex : 'transparent';
-          partElement.querySelector(".prediction-color-name").innerText = data.color ? data.color.name : '';
-          partElement.querySelector(".prediction-color-id").innerText = data.color ? data.color.id : '';
-          partElement.querySelector(".prediction-color-confidence").innerText = data.color ? Math.round(data.color.confidence * 100, 0) + "%" : '';
+          partElement.querySelector(".prediction-color-swatch").style.backgroundColor = part.color ? part.color.hex : 'transparent';
+          partElement.querySelector(".prediction-color-name").innerText = part.color ? part.color.name : '';
+          partElement.querySelector(".prediction-color-id").innerText = part.color ? part.color.id : '';
+          partElement.querySelector(".prediction-color-confidence").innerText = part.color ? Math.round(part.color.confidence * 100, 0) + "%" : '';
 
           predictionElement.querySelector('.prediction-parts').appendChild(partElement);
         })
