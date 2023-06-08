@@ -1,23 +1,46 @@
 import torch
+from PIL import Image
 
+from lib.bounding_box import BoundingBox
 from lib.lego_colors import lego_colors_by_id
 from lib.db import Db
 from lib.compensate import canonical_part_id
 
 class Predictor:
-    def __init__(self, classification_model, color_model, db):
+    def __init__(self, detection_model, classification_model, color_model, db):
+        self.detection_model = detection_model
         self.classification_model = classification_model
         self.color_model = color_model
         self.db = db
 
+    def detect_objects(self, image):
+        results = self.detection_model(image.convert("RGB"))
+
+        if len(results) == 0:
+            return []
+
+        Image.fromarray(
+            results[0].cpu().plot()[..., ::-1]
+        ).save('tmp/last-classify-detection.jpeg')
+        boxes = [BoundingBox.from_yolo(yolo_box)
+                    for yolo_box in results[0].cpu().boxes]
+        boxes = list(filter(lambda box: not box.is_touching_frame(
+            image.width, image.height), boxes))
+        boxes.sort(key=lambda box: box.area, reverse=True)
+
+        return boxes
+
+
     def predict_parts_and_colors(self, image):
+        image.convert("RGB").save('tmp/last-classify-transform.jpg')
+
         results = self.classification_model.predict(source=image)
 
         result = results[0].cpu()
         topk_values, topk_indices = torch.topk(result.probs, k=3)
         topk_classes = [result.names[i.item()] for i in topk_indices]
 
-        color_results = self.color_model.predict(source=image)
+        color_results = self.color_model.predict(source=image.convert("RGB"))
         color_result = color_results[0].cpu()
         color_topk_values, topk_indices = torch.topk(color_result.probs, k=1)
         color_topk_classes = [color_result.names[i.item()]

@@ -12,7 +12,9 @@
 
 <body>
 
-  <input id="myFileInput" type="file" accept="image/png" capture="environment">
+  <div id="color-capture-mode"></div>
+
+  <input id="myFileInput" type="file" accept="image/*">
 
   <div>
     <!-- hidden video -->
@@ -50,7 +52,7 @@
     <div id="predictions-container" class="p-3">
 
       <template id="prediction-template">
-        <div class="d-flex flex-row w-100 mb-5">
+        <div class="d-flex flex-row w-100 mb-3">
           <div class="prediction-color-border p-2" style="border-left: 5px solid gray; background: whitesmoke;">
             <img class="prediction-source" src="https://placehold.jp/50x50.png" style="max-width:50px;" />
           </div>
@@ -60,7 +62,7 @@
       </template>
 
       <template id="prediction-part-template">
-        <div class="ms-3 mb-4 d-flex flex-row">
+        <div class="ms-3 mb-2 d-flex flex-row">
           <div class="d-flex align-items-center h-100">
             <img class="prediction-part-image" src="images/3001.png" style="width: 75px" />
           </div>

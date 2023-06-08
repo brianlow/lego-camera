@@ -130,6 +130,12 @@
       false
     );
 
+    var colorId = new URLSearchParams(window.location.search).get("color-id");
+    if (colorId) {
+      mode = document.getElementById("color-capture-mode");
+      mode.innerText = `Capturing color ${colorId}...`
+    }
+
     clearphoto();
   }
 
@@ -195,7 +201,7 @@
     predictionsContainer.innerHTML = '';
 
     // classify the image
-    fetch("/classify", {
+    fetch("/classify" + window.location.search, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -206,26 +212,28 @@
       .then((data) => {
         console.log("Success:", data);
 
-        const predictionElement = predictionTemplate.content.cloneNode(true);
-        predictionElement.querySelector('.prediction-color-border').style.borderColor = data.color ? data.color.hex : 'gray';
-        predictionElement.querySelector('.prediction-source').src = data.source_url;
+        data.objects.forEach((object) => {
+          const predictionElement = predictionTemplate.content.cloneNode(true);
+          predictionElement.querySelector('.prediction-color-border').style.borderColor = 'gray';
+          predictionElement.querySelector('.prediction-source').src = object.source_url;
 
-        data.parts.forEach((part) => {
-          console.log("PART ", part.id);
-          const partElement = predictionPartTemplate.content.cloneNode(true);
-          partElement.querySelector(".prediction-part-image").src = part.url;
-          partElement.querySelector(".prediction-part-id").innerText = part.id;
-          partElement.querySelector(".prediction-part-name").innerText = part.name;
-          partElement.querySelector(".prediction-part-confidence").innerText = Math.round(part.confidence * 100, 0) + "%";
-          partElement.querySelector(".prediction-color-swatch").style.backgroundColor = part.color ? part.color.hex : 'transparent';
-          partElement.querySelector(".prediction-color-name").innerText = part.color ? part.color.name : '';
-          partElement.querySelector(".prediction-color-id").innerText = part.color ? part.color.id : '';
-          partElement.querySelector(".prediction-color-confidence").innerText = part.color ? Math.round(part.color.confidence * 100, 0) + "%" : '';
+          object.parts.forEach((part) => {
+            console.log("PART ", part.id);
+            const partElement = predictionPartTemplate.content.cloneNode(true);
+            partElement.querySelector(".prediction-part-image").src = part.url;
+            partElement.querySelector(".prediction-part-id").innerText = part.id;
+            partElement.querySelector(".prediction-part-name").innerText = part.name;
+            partElement.querySelector(".prediction-part-confidence").innerText = Math.round(part.confidence * 100, 0) + "%";
+            partElement.querySelector(".prediction-color-swatch").style.backgroundColor = part.color ? part.color.hex : 'transparent';
+            partElement.querySelector(".prediction-color-name").innerText = part.color ? part.color.name : '';
+            partElement.querySelector(".prediction-color-id").innerText = part.color ? part.color.id : '';
+            partElement.querySelector(".prediction-color-confidence").innerText = part.color ? Math.round(part.color.confidence * 100, 0) + "%" : '';
 
-          predictionElement.querySelector('.prediction-parts').appendChild(partElement);
+            predictionElement.querySelector('.prediction-parts').appendChild(partElement);
+          })
+
+          predictionsContainer.appendChild(predictionElement);
         })
-
-        predictionsContainer.appendChild(predictionElement);
       })
       .catch((error) => {
         console.error("Error:", error);

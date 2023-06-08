@@ -1,3 +1,4 @@
+import os
 import base64
 from io import BytesIO
 from PIL import Image, ExifTags
@@ -36,3 +37,10 @@ def correct_image_orientation(image):
         pass
 
     return image
+
+
+def get_default_font():
+    if os.name == 'nt':  # Windows
+        return 'arial.ttf'
+    elif os.name == 'posix':  # Linux or Mac
+        return '/Library/Fonts/Arial.ttf'
