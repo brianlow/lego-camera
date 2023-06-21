@@ -37,12 +37,16 @@ class Predictor:
         results = self.classification_model.predict(source=image)
 
         result = results[0].cpu()
-        topk_values, topk_indices = torch.topk(result.probs, k=3)
+        print("---- probs")
+        print(result.probs)
+        print("---- result")
+        print(result)
+        topk_values, topk_indices = torch.topk(result.probs.data, k=3)
         topk_classes = [result.names[i.item()] for i in topk_indices]
 
         color_results = self.color_model.predict(source=image.convert("RGB"))
         color_result = color_results[0].cpu()
-        color_topk_values, topk_indices = torch.topk(color_result.probs, k=1)
+        color_topk_values, topk_indices = torch.topk(color_result.probs.data, k=1)
         color_topk_classes = [color_result.names[i.item()]
                                 for i in topk_indices]
         predicted_color = lego_colors_by_id[int(color_topk_classes[0])]

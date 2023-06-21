@@ -2,6 +2,8 @@ import os
 import base64
 from io import BytesIO
 from PIL import Image, ExifTags
+import hashlib
+import io
 
 def image_to_data_url(image):
     buffer = BytesIO()
@@ -44,3 +46,12 @@ def get_default_font():
         return 'arial.ttf'
     elif os.name == 'posix':  # Linux or Mac
         return '/Library/Fonts/Arial.ttf'
+
+def compute_image_hash(image):
+    # Convert the image to bytes
+    byte_array = io.BytesIO()
+    image.save(byte_array, format='PNG')
+
+    # Compute hash using SHA-256
+    hash_object = hashlib.sha256(byte_array.getvalue())
+    return hash_object.hexdigest()

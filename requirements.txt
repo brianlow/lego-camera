@@ -3,3 +3,5 @@ ultralytics
 flask
 flask_cors
 sqlite
+opencv-contrib-python
+```

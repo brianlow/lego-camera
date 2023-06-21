@@ -23,6 +23,7 @@
   let predictionPartTemplate = null;
   let boundingBoxes = [];
   let crop = { x: 0, y: 0, width: 300, height: 300 };
+  let captureMode = false;
 
   function startup() {
     var myInput = document.getElementById('myFileInput');
@@ -33,7 +34,12 @@
         reader.onload = async (e) => {
           const dataUrl = e.target.result;
           const base64Image = dataUrl.replace(/^data:image\/(png|jpg|jpeg);base64,/, "");
-          classify(base64Image);
+          if (captureMode) {
+            capture(base64Image)
+          } else {
+            classify(base64Image);
+          }
+
         }
         reader.readAsDataURL(event.target.files[0]);
       }
@@ -130,10 +136,10 @@
       false
     );
 
-    var colorId = new URLSearchParams(window.location.search).get("color-id");
-    if (colorId) {
-      mode = document.getElementById("color-capture-mode");
-      mode.innerText = `Capturing color ${colorId}...`
+    captureMode = !!(new URLSearchParams(window.location.search).get("capture"));
+    if (captureMode) {
+      mode = document.getElementById("capture-mode");
+      mode.innerText = `Capture Mode!`
     }
 
     clearphoto();
@@ -197,6 +203,28 @@
     // 0, 0, canvas.width, canvas.height);
   }
 
+  function capture(base64_image) {
+    predictionsContainer.innerHTML = '';
+
+    fetch("/capture" + window.location.search, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ image: base64_image }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Success:", data);
+
+        predictionsContainer.innerHTML = JSON.stringify(data);
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        predictionsContainer.innerText = error;
+      });
+  }
+
   function classify(base64_image) {
     predictionsContainer.innerHTML = '';
 
@@ -251,7 +279,11 @@
     // base64 encode the image
     const base64_image = data.replace(/^data:image\/(png|jpg);base64,/, "");
 
-    classify(base64_image);
+    if (captureMode) {
+      capture(base64_image)
+    } else {
+      classify(base64_image);
+    }
   }
 
   window.onerror = function (msg, url, line, col, error) {

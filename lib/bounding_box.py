@@ -1,6 +1,7 @@
 from PIL import ImageFont
 import os
 import hashlib
+import math
 
 
 class BoundingBox:
@@ -31,12 +32,42 @@ class BoundingBox:
             y2=y+h
         )
 
+    # Corners is a 4 element array where each element
+    # is a corner [x, y]. This box is most likely a
+    # parallelogram, so we will calculate a square box
+    # that contains all 4 corners.
+    @classmethod
+    def from_aruco(cls, corners):
+        x1 = min(corners[0][0], corners[1][0], corners[2][0], corners[3][0])
+        y1 = min(corners[0][1], corners[1][1], corners[2][1], corners[3][1])
+        x2 = max(corners[0][0], corners[1][0], corners[2][0], corners[3][0])
+        y2 = max(corners[0][1], corners[1][1], corners[2][1], corners[3][1])
+        return cls(
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2
+        )
+
     @classmethod
     def font(self):
         if self._font is None:
             font_path = os.path.expanduser('~/Library/Fonts/Arial.ttf')
             self._font = ImageFont.truetype(font_path, size=24)
         return self._font
+
+    # Given a list of boxes, combine any where the centers
+    # are within threshold pixels of each other
+    @classmethod
+    def combine_nearby(cls, boxes, threshold):
+        combined_boxes = []
+        for box in boxes:
+            index = next((i for i, combined_box in enumerate(combined_boxes) if box.is_nearby(combined_box, threshold)), None)
+            if index is None:
+                combined_boxes.append(box)
+            else:
+                combined_boxes[index] = combined_boxes[index].combine(box)
+        return combined_boxes
 
     @property
     def x(self):
@@ -58,6 +89,10 @@ class BoundingBox:
     def area(self):
         return self.width * self.height
 
+    @property
+    def center(self):
+        return (self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2
+
     def is_touching_frame(self, frame_width, frame_height):
         return self.x1 < 5 or self.y1 < 5 or frame_width - self.x2 < 5 or frame_height - self.y2 < 5
 
@@ -65,9 +100,9 @@ class BoundingBox:
     def crop(self, image):
         return image.crop((int(self.x1), int(self.y1), int(self.x2), int(self.y2)))
 
-    def draw(self, draw):
+    def draw(self, draw, color='white', width=2):
         coords = ((self.x1, self.y1), (self.x2, self.y2))
-        draw.rectangle(coords, outline='white', width=2)
+        draw.rectangle(coords, outline=color, width=width)
 
     # Draw a label below the box, colors are a hex string
     def draw_label(self, draw, text, text_color, swatch_color):
@@ -88,6 +123,27 @@ class BoundingBox:
             self.y1 + y,
             self.x2 + x,
             self.y2 + y
+        )
+
+    def distance(self, other):
+        return math.sqrt((self.center[0] - other.center[0])**2 + (self.center[1] - other.center[1])**2)
+
+    def is_nearby(self, other, threshold):
+        return self.distance(other) < threshold
+
+    def combine(self, other):
+        x1 = min(self.x1, other.x1)
+        y1 = min(self.y1, other.y1)
+        x2 = max(self.x2, other.x2)
+        y2 = max(self.y2, other.y2)
+        return BoundingBox(x1, y1, x2, y2)
+
+    def grow(self, amount):
+        return BoundingBox(
+            self.x1 - amount,
+            self.y1 - amount,
+            self.x2 + amount,
+            self.y2 + amount
         )
 
     # Returns new BoundingBox that is square by lengthing the shorter side
