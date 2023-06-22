@@ -76,6 +76,15 @@ class Predictor:
 
         return parts
 
+    def predict_color(self, image):
+        results = self.color_model.predict(source=image.convert("RGB"))
+        result = results[0].cpu()
+        topk_values, topk_indices = torch.topk(result.probs.data, k=1)
+        topk_classes = [result.names[i.item()] for i in topk_indices]
+        predicted_color = lego_colors_by_id[int(topk_classes[0])]
+        predicted_confidence = float(topk_values[0])
+        return predicted_color, predicted_confidence
+
     def part_name_or_blank(self, num):
         part = self.db.get_part_by_num(num)
         return part.name if part else '??? mismatched ids'

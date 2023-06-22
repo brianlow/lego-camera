@@ -3,16 +3,15 @@ import os
 import hashlib
 import math
 
-
 class BoundingBox:
     _font = None
 
     def __init__(self,
                  x1, y1, x2, y2):
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
+        self.x1 = min(x1, x2)
+        self.x2 = max(x1, x2)
+        self.y1 = min(y1, y2)
+        self.y2 = max(y1, y2)
 
     @classmethod
     def from_yolo(cls, yolo_box):
@@ -56,6 +55,7 @@ class BoundingBox:
             self._font = ImageFont.truetype(font_path, size=24)
         return self._font
 
+    # TODO: deprecated
     # Given a list of boxes, combine any where the centers
     # are within threshold pixels of each other
     @classmethod
@@ -93,8 +93,16 @@ class BoundingBox:
     def center(self):
         return (self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2
 
+    @property
+    def area(self):
+        return self.width * self.height
+
+
     def is_touching_frame(self, frame_width, frame_height):
         return self.x1 < 5 or self.y1 < 5 or frame_width - self.x2 < 5 or frame_height - self.y2 < 5
+
+    def is_inside(self, other):
+        return self.x1 >= other.x1 and self.y1 >= other.y1 and self.x2 <= other.x2 and self.y2 <= other.y2
 
     # Extracts a portion of an image
     def crop(self, image):
@@ -138,6 +146,16 @@ class BoundingBox:
         y2 = max(self.y2, other.y2)
         return BoundingBox(x1, y1, x2, y2)
 
+    # other_point is (x,y)
+    def corner_closest_to(self, other_point):
+        corners = [
+            (self.x1, self.y1),
+            (self.x2, self.y1),
+            (self.x1, self.y2),
+            (self.x2, self.y2)
+        ]
+        return min(corners, key=lambda corner: distance_between_points(corner, other_point))
+
     def grow(self, amount):
         return BoundingBox(
             self.x1 - amount,
@@ -145,6 +163,14 @@ class BoundingBox:
             self.x2 + amount,
             self.y2 + amount
         )
+
+    def shrink_from(self, other):
+        bottom_clipped = BoundingBox(self.x1, self.y1, self.x2, min(self.y2, other.y1))
+        top_clipped = BoundingBox(self.x1, max(self.y1, other.y2), self.x2, self.y2)
+        left_clipped = BoundingBox(max(self.x1, other.x2), self.y1, self.x2, self.y2)
+        right_clipped = BoundingBox(self.x1, self.y1, min(self.x2, other.x1), self.y2)
+        all = [bottom_clipped, top_clipped, left_clipped, right_clipped]
+        return max(all, key=lambda box: box.area)
 
     # Returns new BoundingBox that is square by lengthing the shorter side
     def square(self):
@@ -165,3 +191,7 @@ class BoundingBox:
 
     def __repr__(self):
         return f"BoundingBox({self.x1}, {self.y1}, {self.x2}, {self.y2})"
+
+
+def distance_between_points(a, b):
+    return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)

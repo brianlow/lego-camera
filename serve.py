@@ -23,6 +23,7 @@ from lib.db import Db
 from lib.compensate import canonical_part_id
 from lib.predictor import Predictor
 from lib.aruco_utils import aruco_ids_to_color_id, draw_aruco_corners
+from lib.aruco_marker_set import ArucoMarkerSet
 
 detection_model = YOLO("lego-detect-13-7k-more-negatives3.pt")
 classification_model = YOLO("03-447x.pt")
@@ -61,73 +62,61 @@ def capture():
         image.convert("RGB").save(f'tmp/last-capture-original.{format}')
 
         image = correct_image_orientation(image)
-        opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-        aruco_corners, ids, rejectedImgPoints = aruco_detector.detectMarkers(opencv_image)
 
-        ids = [list[0] for list in ids]
-        print(f"Found ids: {ids}")
+        print("Looking for Aruco markers...")
+        marker_set = ArucoMarkerSet.detect_from_image(image)
 
-        # Find the corner symbols. These are the symbols with value 99.
-        # Since we are scanning 3d boxes with the symbol on all sides, we combine
-        # any symbols that are close together.
-        corner_boxes = []
-        for index, id in enumerate(ids):
-            if id == 99:
-                corner_boxes.append(BoundingBox.from_aruco(aruco_corners[index][0]))
-        corner_boxes = BoundingBox.combine_nearby(corner_boxes, threshold=0.1*image.width)
-        found_corners_or_no_corners = len(corner_boxes) == 4 or len(corner_boxes) == 0
+        print("Looking for Lego pieces...")
+        pieces = predictor.detect_objects(image)
 
-        # Look for color symbols
-        color_ids = [id for id in ids if id <= 90]
-        found_colors = len(color_ids) == 2
+        print("Calculating cropping box...")
+        min_x = min([piece.x1 for piece in pieces])
+        max_x = max([piece.x2 for piece in pieces])
+        min_y = min([piece.y1 for piece in pieces])
+        max_y = max([piece.y2 for piece in pieces])
+        cropping_box = BoundingBox(min_x, min_y, max_x, max_y)
+        cropping_box = cropping_box.grow(max(image.width, image.height)*0.025)
+        for marker in marker_set.markers:
+            cropping_box = cropping_box.shrink_from(marker.bounding_box.grow(marker.bounding_box.width*0.1))
 
-        # Draw our findings on a copy
+        print("Detecting colors...")
+        actual_color = None
+        piece_colors = []
+        if marker_set.valid:
+            actual_color = lego_colors_by_id[marker_set.color_id]
+
+            for piece in pieces:
+                predicted_color, confidence = predictor.predict_color(piece.crop(image))
+                piece_colors.append((piece, predicted_color, confidence))
+
+
+        print("Drawing results...")
         image_copy = image.copy()
         draw = ImageDraw.Draw(image_copy)
-        draw_aruco_corners(draw, aruco_corners, color='red', width=5)
-        for box in corner_boxes:
-            box.grow(10).draw(draw, color='yellow', width=5)
+        marker_set.draw(draw, color='red', width=5)
+        cropping_box.draw(draw, color='green', width=5)
+        if not actual_color is None:
+            for piece, predicted_color, confidence in piece_colors:
+                if not piece.is_inside(cropping_box):
+                    continue
+
+                correct = predicted_color == actual_color
+                piece.draw(draw, color='white', width=10)
+                piece.draw_label(draw, f"{confidence * 100:.0f}%: {predicted_color.name} ({predicted_color.id})",
+                                text_color = 'black' if correct else 'red',
+                                swatch_color=predicted_color.hex())
+
         image_copy.convert("RGB").save(f'tmp/last-capture-detect.{format}')
 
-        if not found_corners_or_no_corners :
-            return jsonify({'success': False, 'message': f"Found {len(corner_boxes)} corner markers"})
-
-        if not found_colors :
-            return jsonify({'success': False, 'message': f"Found {len(color_ids)} color markers"})
-
-        # Crop out any Aruco markers (corners and color markers)
-        all_boxes = [BoundingBox.from_aruco(aruco_corner[0]) for aruco_corner in aruco_corners]
-        image_center = (image.width / 2, image.height / 2)
-        x1 = max([box.x for box in all_boxes if box.center[0] < image_center[0]], default=0)
-        x2 = min([box.x for box in all_boxes if box.center[0] > image_center[0]], default=image.width)
-        y1 = max([box.y for box in all_boxes if box.center[1] < image_center[1]], default=0)
-        y2 = min([box.y for box in all_boxes if box.center[1] > image_center[1]], default=image.height)
-        cropping_box = BoundingBox(x1, y1, x2, y2)
+        print("Saving processed file...")
         cropped_image = cropping_box.crop(image)
-        pieces = predictor.detect_objects(cropped_image)
-        print(f"Found {len(pieces)} lego pieces")
-
-        color_id = aruco_ids_to_color_id(color_ids)
-        color = lego_colors_by_id[color_id]
-        print(f"Found color id {color_id} from {color_ids}")
-
-        for piece in pieces:
-            piece.move(cropping_box.x1, cropping_box.y1).draw(draw, color='purple', width=5)
-        cropping_box.grow(20).draw(draw, color='white', width=5)
-        cropping_box.grow(20).draw_label(draw, f"{color.id} - {color.name}", 'black', color.hex())
-        image_copy.convert("RGB").save(f'tmp/last-capture-detect.{format}')
-
-        color_name = re.sub(r'\W+', '', color.name)
-        hash = compute_image_hash(image)
-        new_filename = f"tmp/colors/{color_name}-{hash[:6]}.{color.id}.{format}"
-        os.makedirs(os.path.dirname(new_filename), exist_ok=True)
+        color_name = re.sub(r'\W+', '', actual_color.name)
+        hash = compute_image_hash(cropped_image)
+        new_filename = f"tmp/colors/{color_name}-{hash[:6]}.{actual_color.id}.{format}"
         cropped_image.save(new_filename)
 
         response = {
-            'color_id': color.id,
-            'color_name': color.name,
-            'color_hex': color.hex(),
-            'corners': len(corner_boxes),
+            'success': actual_color is not None,
             'filename': new_filename,
         }
 
