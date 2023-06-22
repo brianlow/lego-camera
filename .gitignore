@@ -6,4 +6,4 @@ data
 runs
 **/__pycache__
 static/images
-03-447x.pt
+*.pt
