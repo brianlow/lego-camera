@@ -5,15 +5,11 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from lib.lego_colors import lego_colors_by_id
+from lib.aruco_utils import aruco_ids_to_color_id
 
 dict = aruco.getPredefinedDictionary(aruco.DICT_6X6_100)
 detector = aruco.ArucoDetector(dict)
 
-def symbol_value_to_color_id(symbol_value):
-    if symbol_value < 50:
-        return symbol_value
-    else:
-        return (symbol_value-50) * 50
 
 filenames = [
     'tmp/markers-1.jpeg',
@@ -45,8 +41,7 @@ for filename in filenames:
     color_ids = [id for id in ids if id != 99]
     if len(color_ids) == 2:
         print(f"color_ids: {color_ids}")
-        color_id = symbol_value_to_color_id(color_ids[0])
-        color_id += symbol_value_to_color_id(color_ids[1])
+        color_id = aruco_ids_to_color_id(colors_ids)
         color = lego_colors_by_id[color_id]
         print(f"Found {color.id} - {color.name}")
 
